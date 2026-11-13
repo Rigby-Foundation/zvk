@@ -1,0 +1,37 @@
+{
+  "spirv-tools": {
+    "commit": "1d0401cd2b68ae34cda9ff625bedd1be4ed6214a",
+    "sha256": "9c4c7151a5a07d5e920f5a0a5db2486014fa52af80b29f27d20e4ea63bdf3983",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-Tools/tar.gz/1d0401cd2b68ae34cda9ff625bedd1be4ed6214a"
+  },
+  "glslang": {
+    "commit": "2ff6f609379ce43c4291c732cf6a19dd2461a680",
+    "sha256": "7e282507c4e1ab0ebd0b363f184c2fc45589f11b1e2958d42133e314fa686359",
+    "url": "https://codeload.github.com/KhronosGroup/glslang/tar.gz/2ff6f609379ce43c4291c732cf6a19dd2461a680"
+  },
+  "spirv-headers": {
+    "commit": "cb42dec3830d3ac67fa449ecdc0c0f73d5e74498",
+    "sha256": "117010e525fe36b1ce006e0e58a6e0a3b415aabc9179d912b92737f41f3f994f",
+    "url": "https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/cb42dec3830d3ac67fa449ecdc0c0f73d5e74498"
+  },
+  "vulkan-docs": {
+    "commit": "01aaacd99480487bf63830959513c5ca8ceb996d",
+    "sha256": "8afbfdc94030b5fac6cda641781113665370056d8cec58313066a2694410e16c",
+    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Docs/tar.gz/01aaacd99480487bf63830959513c5ca8ceb996d"
+  },
+  "amber": {
+    "commit": "c9f1e2871ccbb0b0564c4a33e359801144f6b7c1",
+    "sha256": "2fbd46f7121ad1de8fe0382f5d05d753e56e0f5003bba66a98e52366f302f4fc",
+    "url": "https://codeload.github.com/google/amber/tar.gz/c9f1e2871ccbb0b0564c4a33e359801144f6b7c1"
+  },
+  "jsoncpp": {
+    "commit": "89e2973c754a9c02a49974d839779b151e95afd6",
+    "sha256": "fbdcd9beff428968710f339b15ae3911e295a5a71da0cbadbdd631d7a5aeaaee",
+    "url": "https://codeload.github.com/open-source-parsers/jsoncpp/tar.gz/89e2973c754a9c02a49974d839779b151e95afd6"
+  },
+  "vulkansc-pcutil": {
+    "commit": "f67d9e8e1c04f179ebeb837d21ab06192ad43fa0",
+    "sha256": "a6fc530ab5878033f6c4be3563cc377ae8e253b04c56d4c8100c0bde78274036",
+    "url": "https://codeload.github.com/KhronosGroup/VulkanSC-pcutil/tar.gz/f67d9e8e1c04f179ebeb837d21ab06192ad43fa0"
+  }
+}

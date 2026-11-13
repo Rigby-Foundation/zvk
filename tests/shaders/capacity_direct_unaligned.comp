@@ -1,0 +1,9 @@
+#version 450
+layout(local_size_x=1) in;
+layout(set=0,binding=0,r8) uniform image2D im[4];
+void main() {
+    imageStore(im[0],ivec2(0),imageLoad(im[0],ivec2(0))+vec4(1.0/255.0));
+    imageStore(im[1],ivec2(0),imageLoad(im[1],ivec2(0))+vec4(1.0/255.0));
+    imageStore(im[2],ivec2(0),imageLoad(im[2],ivec2(0))+vec4(1.0/255.0));
+    imageStore(im[3],ivec2(0),imageLoad(im[3],ivec2(0))+vec4(1.0/255.0));
+}

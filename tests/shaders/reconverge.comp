@@ -1,0 +1,22 @@
+#version 450
+layout(local_size_x=128) in;
+layout(set=0,binding=0,std430) buffer Data { uint values[]; } data;
+shared uint scratch[128];
+shared uvec2 broadcast_value;
+uvec2 advance(uint round) { return uvec2(round+1,round*5+2); }
+void main() {
+    uint i=gl_LocalInvocationIndex;
+    for(uint round=0;round<8;round++) {
+        if(i==0) broadcast_value=advance(round);
+        barrier();
+        if(i<9) scratch[i]=broadcast_value.x+i+broadcast_value.y;
+        barrier();
+        if(i==0) {
+            uint sum=0;
+            for(uint j=0;j<9;j++) sum+=scratch[j];
+            data.values[round+1]=sum;
+        }
+        barrier();
+    }
+    if(i==0) data.values[0]=8;
+}

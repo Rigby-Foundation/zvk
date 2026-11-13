@@ -1,0 +1,35 @@
+#version 450
+layout(local_size_x=1) in;
+layout(set=0,binding=0,std140) uniform U0 { uint value; } u0;
+layout(set=0,binding=1,std140) uniform U1 { uint value; } u1;
+layout(set=0,binding=2,std140) uniform U2 { uint value; } u2;
+layout(set=0,binding=3,std140) uniform U3 { uint value; } u3;
+layout(set=0,binding=4,std140) uniform U4 { uint value; } u4;
+layout(set=0,binding=5,std140) uniform U5 { uint value; } u5;
+layout(set=0,binding=6,std140) uniform U6 { uint value; } u6;
+layout(set=0,binding=7,std140) uniform U7 { uint value; } u7;
+layout(set=0,binding=8,std140) uniform U8 { uint value; } u8;
+layout(set=0,binding=9,std140) uniform U9 { uint value; } u9;
+layout(set=0,binding=10,std140) uniform U10 { uint value; } u10;
+layout(set=0,binding=11,std140) uniform U11 { uint value; } u11;
+layout(set=0,binding=12) uniform usamplerBuffer texels[15];
+layout(set=0,binding=13,r32ui) uniform uimageBuffer outputTexels;
+void main() {
+    uint sum = u0.value+u1.value+u2.value+u3.value+u4.value+u5.value+u6.value+u7.value+u8.value+u9.value+u10.value+u11.value;
+    sum += texelFetch(texels[0],0).x;
+    sum += texelFetch(texels[1],0).x;
+    sum += texelFetch(texels[2],0).x;
+    sum += texelFetch(texels[3],0).x;
+    sum += texelFetch(texels[4],0).x;
+    sum += texelFetch(texels[5],0).x;
+    sum += texelFetch(texels[6],0).x;
+    sum += texelFetch(texels[7],0).x;
+    sum += texelFetch(texels[8],0).x;
+    sum += texelFetch(texels[9],0).x;
+    sum += texelFetch(texels[10],0).x;
+    sum += texelFetch(texels[11],0).x;
+    sum += texelFetch(texels[12],0).x;
+    sum += texelFetch(texels[13],0).x;
+    sum += texelFetch(texels[14],0).x;
+    imageStore(outputTexels,0,uvec4(sum));
+}

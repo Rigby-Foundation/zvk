@@ -1,0 +1,135 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* All address calculations, texel decoding, comparisons and filtering execute
+ * on the GPU. The transport provides packed source bytes and view metadata. */
+struct zvk_sampler {
+    uint4 modes;
+    float4 lod;
+    uint4 border,swizzle;
+};
+uint4 zvk_swizzle(uint4 value,uint4 map,uint kind) {
+    uint4 out;
+    for(uint k=0;k<4;k++)out[k]=map[k]<4?value[map[k]]:
+        map[k]==4?0:(kind==F_UINT||kind==F_SINT)?1:as_type<uint>(1.0f);
+    return out;
+}
+int zvk_wrap(int x,int n,uint mode) {
+    if(mode==0){int r=x%n;return r<0?r+n:r;}
+    if(mode==1){int r=x%(2*n);if(r<0)r+=2*n;return r<n?r:2*n-r-1;}
+    if(mode==3 && (x<0||x>=n))return -1;
+    if(mode==4)return min(x<0?-x-1:x,n-1);
+    return clamp(x,0,n-1);
+}
+bool zvk_compare(float reference,float value,uint op) {
+    switch(op) {
+    case 0:return false;case 1:return reference<value;case 2:return reference==value;
+    case 3:return reference<=value;case 4:return reference>value;case 5:return reference!=value;
+    case 6:return reference>=value;default:return true;
+    }
+}
+float3 zvk_cube(float3 direction) {
+    float3 a=abs(direction);float s,t,m;uint face;
+    if(a.x>=a.y && a.x>=a.z){m=a.x;t=-direction.y;s=direction.x>=0?-direction.z:direction.z;face=direction.x>=0?0:1;}
+    else if(a.y>=a.z){m=a.y;s=direction.x;t=direction.y>=0?direction.z:-direction.z;face=direction.y>=0?2:3;}
+    else {m=a.z;t=-direction.y;s=direction.z>=0?direction.x:-direction.x;face=direction.z>=0?4:5;}
+    return float3(m>0?float2(s,t)/(2*m)+0.5f:float2(0.5f),float(face));
+}
+float3 zvk_uncube(float2 uv,uint face) {
+    float s=2*uv.x-1,t=2*uv.y-1;
+    switch(face){case 0:return float3(1,-t,-s);case 1:return float3(-1,-t,s);
+    case 2:return float3(s,1,t);case 3:return float3(s,-1,-t);
+    case 4:return float3(s,-t,1);default:return float3(-s,-t,-1);}
+}
+uint4 zvk_tap(const device uint *bytes,uint size,zvk_info m,zvk_sampler state,
+               uint4 swizzle,int3 p,uint shape,bool comparison,float reference) {
+    uint dim=shape&15u;bool array=(shape&16u)!=0;
+    if(dim==3) {
+        if(p.x<0||p.y<0||p.x>=int(m.extent.x)||p.y>=int(m.extent.y)) {
+            float3 face=zvk_cube(zvk_uncube((float2(p.xy)+0.5f)/float2(m.extent.xy),uint(p.z)));
+            p.xy=clamp(int2(floor(face.xy*float2(m.extent.xy))),int2(0),int2(m.extent.xy)-1);
+            p.z=int(face.z);
+        }
+    } else {
+        p.x=zvk_wrap(p.x,int(m.extent.x),state.modes.x&15u);
+        if(dim!=0)p.y=zvk_wrap(p.y,int(m.extent.y),(state.modes.x>>4u)&15u);
+        if(dim==2)p.z=zvk_wrap(p.z,int(m.extent.z),(state.modes.x>>8u)&15u);
+        else if(!array)p.z=0;
+    }
+    bool border=any(p<0);
+    uint4 v=border?state.border:zvk_iread(bytes,size,m,uint3(p));
+    if(border) {
+        uint present=(m.format.y>>8u)&15u;
+        for(uint c=0;c<4;c++)if((present&(1u<<c))==0u)
+            v[c]=c==3?((m.format.y&255u)==F_UINT||(m.format.y&255u)==F_SINT?1u:as_type<uint>(1.0f)):0u;
+    }
+    if(comparison) {
+        float d=as_type<float>(v.x);
+        if((m.format.y&255u)==F_UNORM)reference=clamp(reference,0.0f,1.0f);
+        return uint4(as_type<uint>(zvk_compare(reference,d,(state.modes.x>>16u)&7u)?1.0f:0.0f));
+    }
+    return zvk_swizzle(v,swizzle,m.format.y&255u);
+}
+float4 zvk_lerp(float4 a,float4 b,float t) {
+    if(t==0.0f)return a;
+    if(t==1.0f)return b;
+    return select(mix(a,b,t),a,a==b);
+}
+uint4 zvk_filter(const device uint *bytes,uint size,zvk_info m,zvk_sampler state,
+                 uint4 swizzle,float4 coord,uint shape,bool linear,bool comparison,
+                 float reference,int3 offset,int gather,uint4 offsets_x,uint4 offsets_y) {
+    uint dim=shape&15u;bool array=(shape&16u)!=0;
+    float3 p=coord.xyz;
+    if(dim==3)p=zvk_cube(p);
+    if(dim==0){p=float3(coord.x,0,array?floor(coord.y+0.5f):0);}
+    else if(array)p.z=floor(coord.z+0.5f);
+    if(array)p.z=clamp(p.z,0.0f,float(m.extent.z-1));
+    bool normalized=(state.modes.x&(1u<<12u))==0;
+    if(normalized) {
+        p.x*=m.extent.x;
+        if(dim!=0)p.y*=m.extent.y;
+        if(dim==2)p.z*=m.extent.z;
+    }
+    if(!linear && gather<0) {
+        int3 q=int3(floor(p))+offset;
+        return zvk_tap(bytes,size,m,state,swizzle,q,shape,comparison,reference);
+    }
+    p.x-=0.5f;if(dim!=0)p.y-=0.5f;if(dim==2)p.z-=0.5f;
+    int3 base=int3(floor(p))+offset;float3 fraction=fract(p);
+    if(gather>=0) {
+        uint4 result;
+        const int2 taps[4]={int2(0,1),int2(1,1),int2(1,0),int2(0,0)};
+        for(uint k=0;k<4;k++) {
+            int3 q=base+int3(taps[k]+int2(as_type<int>(offsets_x[k]),as_type<int>(offsets_y[k])),0);
+            result[k]=zvk_tap(bytes,size,m,state,swizzle,q,shape,comparison,reference)[gather];
+        }
+        return result;
+    }
+    float4 rows[4];
+    for(uint z=0;z<(dim==2?2u:1u);z++)
+        for(uint y=0;y<(dim==0?1u:2u);y++) {
+            float4 a=as_type<float4>(zvk_tap(bytes,size,m,state,swizzle,base+int3(0,y,z),shape,comparison,reference));
+            float4 b=as_type<float4>(zvk_tap(bytes,size,m,state,swizzle,base+int3(1,y,z),shape,comparison,reference));
+            rows[z*2+y]=zvk_lerp(a,b,fraction.x);
+        }
+    float4 result=dim==0?rows[0]:zvk_lerp(rows[0],rows[1],fraction.y);
+    if(dim==2)result=zvk_lerp(result,zvk_lerp(rows[2],rows[3],fraction.y),fraction.z);
+    return as_type<uint4>(result);
+}
+uint4 zvk_sample(const device uint *bytes,uint size,const device zvk_info *metadata,
+                 uint slot,uint sampler_slot,uint shape,float4 coord,float lod,float shader_bias,
+                 bool comparison,float reference,int3 offset,int gather,uint4 offsets_x,uint4 offsets_y) {
+    const device zvk_sampler *samplers=reinterpret_cast<const device zvk_sampler *>(metadata+ZVK_META_SAMPLER);
+    zvk_sampler state=samplers[sampler_slot];uint4 swizzle=samplers[slot].swizzle;
+    uint levels=metadata[slot].format.y>>16u;
+    lod+=clamp(shader_bias+state.lod.x,-16.0f,16.0f);
+    lod=clamp(lod,state.lod.y,state.lod.z);
+    bool linear=((state.modes.x>>(lod<=0?21u:20u))&1u)!=0;
+    bool miplinear=((state.modes.x>>22u)&1u)!=0;
+    lod=clamp(lod,0.0f,float(levels-1));
+    uint first=uint(floor(lod+(miplinear?0.0f:0.5f)));
+    uint4 a=zvk_filter(bytes,size,metadata[ZVK_RESOURCES+slot*ZVK_MIPS+first],state,swizzle,
+                      coord,shape,linear,comparison,reference,offset,gather,offsets_x,offsets_y);
+    if(!miplinear || first+1>=levels || gather>=0)return a;
+    uint4 b=zvk_filter(bytes,size,metadata[ZVK_RESOURCES+slot*ZVK_MIPS+first+1],state,swizzle,
+                      coord,shape,linear,comparison,reference,offset,gather,offsets_x,offsets_y);
+    return as_type<uint4>(zvk_lerp(as_type<float4>(a),as_type<float4>(b),fract(lod)));
+}

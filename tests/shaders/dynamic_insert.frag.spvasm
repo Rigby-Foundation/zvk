@@ -1,0 +1,55 @@
+; A debug line may precede or separate function parameters. Preserve all
+; other vector lanes while inserting a quantized value at a dynamic index.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %main "main" %color
+OpExecutionMode %main OriginUpperLeft
+%file = OpString "dynamic_insert.frag"
+OpDecorate %color Location 0
+OpDecorate %Push Block
+OpMemberDecorate %Push 0 Offset 0
+%void = OpTypeVoid
+%uint = OpTypeInt 32 0
+%float = OpTypeFloat 32
+%vec4 = OpTypeVector %float 4
+%Push = OpTypeStruct %uint
+%push_ptr = OpTypePointer PushConstant %Push
+%index_ptr = OpTypePointer PushConstant %uint
+%output_ptr = OpTypePointer Output %vec4
+%main_type = OpTypeFunction %void
+%insert_type = OpTypeFunction %vec4 %vec4 %float %uint
+%two = OpConstant %uint 2
+%array = OpTypeArray %vec4 %two
+%push = OpVariable %push_ptr PushConstant
+%color = OpVariable %output_ptr Output
+%zero = OpConstant %uint 0
+%fzero = OpConstant %float 0
+%fone = OpConstant %float 1
+%positive = OpSpecConstant %float 0.50012
+%rounded = OpSpecConstantOp %float QuantizeToF16 %positive
+%initial = OpConstantComposite %vec4 %fzero %fzero %fzero %fone
+%inserted_constant = OpSpecConstantOp %vec4 CompositeInsert %fzero %initial 0
+%shuffled = OpSpecConstantOp %vec4 VectorShuffle %inserted_constant %initial 0 1 2 3
+%pair = OpConstantComposite %array %initial %initial
+%changed_pair = OpSpecConstantOp %array CompositeInsert %shuffled %pair 1
+%selected_vector = OpSpecConstantOp %vec4 CompositeExtract %changed_pair 1
+%insert = OpFunction %vec4 None %insert_type
+OpLine %file 1 1
+%vector = OpFunctionParameter %vec4
+OpNoLine
+%component = OpFunctionParameter %float
+OpLine %file 2 1
+%index = OpFunctionParameter %uint
+%insert_entry = OpLabel
+%inserted = OpVectorInsertDynamic %vec4 %vector %component %index
+OpReturnValue %inserted
+OpFunctionEnd
+%main = OpFunction %void None %main_type
+%entry = OpLabel
+%address = OpAccessChain %index_ptr %push %zero
+%selected = OpLoad %uint %address
+%half = OpQuantizeToF16 %float %rounded
+%result = OpFunctionCall %vec4 %insert %selected_vector %half %selected
+OpStore %color %result
+OpReturn
+OpFunctionEnd

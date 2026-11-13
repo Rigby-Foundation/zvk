@@ -1,0 +1,71 @@
+; SPDX-License-Identifier: LGPL-2.1-or-later
+; A selection header can branch to an enclosing switch's merge, bypassing
+; the inner merge's store. Check both the store and incoming-edge phi value.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %main "main" %coord %color
+OpExecutionMode %main OriginUpperLeft
+OpDecorate %coord BuiltIn FragCoord
+OpDecorate %color Location 0
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%float = OpTypeFloat 32
+%vec4 = OpTypeVector %float 4
+%int = OpTypeInt 32 1
+%uint = OpTypeInt 32 0
+%bool = OpTypeBool
+%bvec4 = OpTypeVector %bool 4
+%input = OpTypePointer Input %vec4
+%input_float = OpTypePointer Input %float
+%output = OpTypePointer Output %vec4
+%local = OpTypePointer Function %float
+%coord = OpVariable %input Input
+%color = OpVariable %output Output
+%u0 = OpConstant %uint 0
+%i0 = OpConstant %int 0
+%i1 = OpConstant %int 1
+%zero = OpConstant %float 0
+%one = OpConstant %float 1
+%quarter = OpConstant %float 0.25
+%half = OpConstant %float 0.5
+%threequarters = OpConstant %float 0.75
+%good_color = OpConstantComposite %vec4 %quarter %half %threequarters %one
+%bad_color = OpConstantComposite %vec4 %one %zero %zero %one
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%value = OpVariable %local Function
+OpStore %value %quarter
+%px = OpAccessChain %input_float %coord %u0
+%x = OpLoad %float %px
+%ix = OpConvertFToS %int %x
+%bit = OpBitwiseAnd %int %ix %i1
+%even = OpIEqual %bool %bit %i0
+%positive = OpFOrdGreaterThanEqual %bool %x %zero
+OpSelectionMerge %outer_merge None
+OpSwitch %u0 %inner_header 1 %outer_else
+%inner_header = OpLabel
+OpSelectionMerge %inner_merge None
+OpBranchConditional %even %outer_merge %inner_body
+%inner_body = OpLabel
+OpBranch %inner_merge
+%inner_merge = OpLabel
+OpStore %value %threequarters
+OpBranch %outer_merge
+%outer_else = OpLabel
+OpStore %value %half
+OpBranch %outer_merge
+%outer_merge = OpLabel
+%edge_value = OpPhi %float %quarter %inner_header %threequarters %inner_merge %half %outer_else
+%loaded = OpLoad %float %value
+%expected = OpSelect %float %even %quarter %threequarters
+%store_ok = OpFOrdEqual %bool %loaded %expected
+%phi_ok = OpFOrdEqual %bool %edge_value %expected
+%dx = OpDPdx %float %x
+%derivative_ok = OpFOrdEqual %bool %dx %one
+%values_ok = OpLogicalAnd %bool %store_ok %phi_ok
+%ok = OpLogicalAnd %bool %values_ok %derivative_ok
+%ok4 = OpCompositeConstruct %bvec4 %ok %ok %ok %ok
+%result = OpSelect %vec4 %ok4 %good_color %bad_color
+OpStore %color %result
+OpReturn
+OpFunctionEnd

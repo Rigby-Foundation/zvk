@@ -1,0 +1,82 @@
+; SPDX-License-Identifier: LGPL-2.1-or-later
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main" %gid
+OpExecutionMode %main LocalSize 4 1 1
+OpDecorate %gid BuiltIn GlobalInvocationId
+OpDecorate %words ArrayStride 4
+OpDecorate %storage BufferBlock
+OpMemberDecorate %storage 0 Offset 0
+OpDecorate %uniform Block
+OpMemberDecorate %uniform 0 Offset 0
+OpDecorate %outputs DescriptorSet 0
+OpDecorate %outputs Binding 0
+OpDecorate %inputs DescriptorSet 0
+OpDecorate %inputs Binding 1
+%void = OpTypeVoid
+%uint = OpTypeInt 32 0
+%bool = OpTypeBool
+%uvec3 = OpTypeVector %uint 3
+%zero = OpConstant %uint 0
+%one = OpConstant %uint 1
+%two = OpConstant %uint 2
+%semantics = OpConstant %uint 72
+%words = OpTypeRuntimeArray %uint
+%storage = OpTypeStruct %words
+%uniform = OpTypeStruct %uint
+%storages = OpTypeArray %storage %two
+%uniforms = OpTypeArray %uniform %two
+%ptr_storages = OpTypePointer Uniform %storages
+%ptr_uniforms = OpTypePointer Uniform %uniforms
+%ptr_buffer_uint = OpTypePointer Uniform %uint
+%ptr_input = OpTypePointer Input %uvec3
+%ptr_private = OpTypePointer Private %uint
+%main_type = OpTypeFunction %void
+%value_type = OpTypeFunction %uint %uint
+%outputs = OpVariable %ptr_storages Uniform
+%inputs = OpVariable %ptr_uniforms Uniform
+%gid = OpVariable %ptr_input Input
+%counter = OpVariable %ptr_private Private %zero
+%inc = OpFunction %uint None %value_type
+%x = OpFunctionParameter %uint
+%inc_entry = OpLabel
+%old = OpLoad %uint %counter
+%new = OpIAdd %uint %old %one
+OpStore %counter %new
+%plus = OpIAdd %uint %x %one
+OpReturnValue %plus
+OpFunctionEnd
+%twice = OpFunction %uint None %value_type
+%y = OpFunctionParameter %uint
+%twice_entry = OpLabel
+%first = OpFunctionCall %uint %inc %y
+%second = OpFunctionCall %uint %inc %first
+OpReturnValue %second
+OpFunctionEnd
+%main = OpFunction %void None %main_type
+%entry = OpLabel
+%global = OpLoad %uvec3 %gid
+%index = OpCompositeExtract %uint %global 0
+%odd = OpBitwiseAnd %uint %index %one
+%condition = OpINotEqual %bool %odd %zero
+OpSelectionMerge %merge None
+OpBranchConditional %condition %fence %merge
+%fence = OpLabel
+; No execution barrier is allowed here: only half the invocations enter.
+OpMemoryBarrier %one %semantics
+OpBranch %merge
+%merge = OpLabel
+%a_ptr = OpAccessChain %ptr_buffer_uint %inputs %zero %zero
+%b_ptr = OpAccessChain %ptr_buffer_uint %inputs %one %zero
+%a = OpLoad %uint %a_ptr
+%b = OpLoad %uint %b_ptr
+%result_a = OpFunctionCall %uint %twice %a
+%result_b = OpFunctionCall %uint %twice %b
+%count = OpLoad %uint %counter
+%result_counted = OpIAdd %uint %result_b %count
+%out_a = OpAccessChain %ptr_buffer_uint %outputs %zero %zero %index
+%out_b = OpAccessChain %ptr_buffer_uint %outputs %one %zero %index
+OpStore %out_a %result_a
+OpStore %out_b %result_counted
+OpReturn
+OpFunctionEnd

@@ -1,0 +1,9 @@
+#version 450
+layout(local_size_x=4) in;
+layout(set=0,binding=0) uniform samplerBuffer inputTexels;
+layout(set=0,binding=1,rgba32f) uniform writeonly imageBuffer outputTexels;
+void main() {
+    int i=int(gl_GlobalInvocationID.x);
+    if(i < textureSize(inputTexels))
+        imageStore(outputTexels,i,texelFetch(inputTexels,i));
+}

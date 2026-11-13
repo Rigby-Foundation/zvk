@@ -1,0 +1,49 @@
+; Parallel phi copies: swap a and b each trip, so three trips yield b,a.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %main "main" %color
+OpExecutionMode %main OriginUpperLeft
+OpDecorate %color Location 0
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%bool = OpTypeBool
+%uint = OpTypeInt 32 0
+%float = OpTypeFloat 32
+%vec4 = OpTypeVector %float 4
+%ptr = OpTypePointer Output %vec4
+%color = OpVariable %ptr Output
+%zero = OpConstant %uint 0
+%one = OpConstant %uint 1
+%three = OpConstant %uint 3
+%quarter = OpConstant %float 0.25
+%half = OpConstant %float 0.5
+%three_quarters = OpConstant %float 0.75
+%fone = OpConstant %float 1
+%main = OpFunction %void None %fn
+%entry = OpLabel
+OpBranch %loop
+%loop = OpLabel
+%i = OpPhi %uint %zero %entry %next %continue
+%a = OpPhi %float %quarter %entry %b %continue
+%b = OpPhi %float %three_quarters %entry %a %continue
+%test = OpULessThan %bool %i %three
+OpLoopMerge %exit %continue None
+OpBranchConditional %test %body %exit
+%body = OpLabel
+OpBranch %continue
+%continue = OpLabel
+%next = OpIAdd %uint %i %one
+OpBranch %loop
+%exit = OpLabel
+OpSelectionMerge %merge None
+OpSwitch %i %other 3 %chosen
+%other = OpLabel
+OpBranch %merge
+%chosen = OpLabel
+OpBranch %merge
+%merge = OpLabel
+%last = OpPhi %float %quarter %other %half %chosen
+%result = OpCompositeConstruct %vec4 %a %b %last %fone
+OpStore %color %result
+OpReturn
+OpFunctionEnd

@@ -1,0 +1,15 @@
+#version 450
+layout(local_size_x=8) in;
+layout(set=0,binding=0,std430) buffer Data { uint values[]; } data;
+shared uint scratch[8];
+void main() {
+    uint i=gl_LocalInvocationIndex;
+    scratch[i]=gl_GlobalInvocationID.x+1;
+    barrier();
+    if (i==0) {
+        uint sum=0;
+        for(uint k=0;k<8;k++) sum+=scratch[k];
+        data.values[gl_WorkGroupID.x+1]=sum;
+        atomicAdd(data.values[0],1);
+    }
+}

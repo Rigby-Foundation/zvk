@@ -1,0 +1,8 @@
+#version 450
+layout(local_size_x=4,local_size_y=2) in;
+layout(set=0,binding=0,r32ui) uniform uimage2DArray images[2];
+void main() {
+    ivec3 p=ivec3(gl_GlobalInvocationID);
+    if(all(lessThan(p,imageSize(images[1]))))
+        imageStore(images[1],p,imageLoad(images[0],p)+uvec4(1000u+uint(p.z)*100u));
+}

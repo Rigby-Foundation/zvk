@@ -1,0 +1,13 @@
+#version 450
+layout(local_size_x=8) in;
+layout(set=0,binding=0) uniform usamplerBuffer inputTexels;
+layout(set=0,binding=1,rgba32ui) uniform uimageBuffer outputTexels;
+layout(set=0,binding=2,r32i) uniform iimageBuffer counters;
+void main() {
+    int i=int(gl_GlobalInvocationID.x);
+    if(i < imageSize(outputTexels)) {
+        uvec4 v=texelFetch(inputTexels,i);
+        imageStore(outputTexels,i,v+uvec4(1,2,3,4));
+        imageAtomicAdd(counters,0,1);
+    }
+}

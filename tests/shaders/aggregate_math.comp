@@ -1,0 +1,35 @@
+#version 450
+layout(local_size_x=1) in;
+layout(constant_id=0) const uint dimension=2;
+layout(set=0,binding=0,std430) buffer Result { uint words[]; } result;
+struct Data { mat2x3 m; vec3 v[2]; uint n; };
+Data edit(Data data,inout vec3 value) {
+    value+=data.v[0];
+    data.m=transpose(transpose(data.m))*2.0;
+    data.n+=uint(dot(value,vec3(1.0)));
+    return data;
+}
+void main() {
+    Data data=Data(mat2x3(vec3(1,2,3),vec3(4,5,6)),vec3[2](vec3(1,2,3),vec3(4,5,6)),9u);
+    vec3 value=data.v[1];
+    data=edit(data,value);
+    vec3 product=data.m*vec2(2,3);
+    result.words[0]=uint(product.x);
+    result.words[1]=uint(product.y);
+    result.words[2]=uint(product.z);
+    result.words[3]=data.n;
+    uint high,low,carry,borrow;
+    umulExtended(0xfffffffeu,3u,high,low);
+    result.words[4]=high;result.words[5]=low;
+    result.words[6]=uaddCarry(0xffffffffu,3u,carry);
+    result.words[7]=carry;
+    result.words[8]=usubBorrow(0u,1u,borrow);
+    result.words[9]=borrow;
+    float local[(dimension+3)*2];
+    local[dimension+2]=3.5;
+    result.words[10]=floatBitsToUint(local[4]);
+    float whole;
+    result.words[11]=floatBitsToUint(modf(-2.25,whole));
+    result.words[12]=floatBitsToUint(whole);
+    result.words[13]=floatBitsToUint(determinant(inverse(mat2(2,1,0,2))));
+}

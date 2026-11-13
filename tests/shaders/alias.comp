@@ -1,0 +1,12 @@
+#version 450
+layout(local_size_x=8) in;
+layout(set=0,binding=0,std430) buffer First { uint values[]; } first;
+layout(set=0,binding=1,std430) buffer Second { uint values[]; } second;
+void main() {
+    if (gl_GlobalInvocationID.x==0) {
+        first.values[0]=41;
+        second.values[1]=second.values[0]+1;
+        atomicAdd(first.values[2],7);
+        atomicAdd(second.values[2],5);
+    }
+}

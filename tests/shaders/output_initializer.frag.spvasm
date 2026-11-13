@@ -1,0 +1,38 @@
+; Initializers execute for each invocation, including builtin outputs.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %main "main" %coord %color %depth
+OpExecutionMode %main OriginUpperLeft
+OpExecutionMode %main DepthReplacing
+OpDecorate %coord BuiltIn FragCoord
+OpDecorate %color Location 0
+OpDecorate %depth BuiltIn FragDepth
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%bool = OpTypeBool
+%float = OpTypeFloat 32
+%vec4 = OpTypeVector %float 4
+%input = OpTypePointer Input %vec4
+%output = OpTypePointer Output %vec4
+%depth_output = OpTypePointer Output %float
+%quarter = OpConstant %float 0.25
+%half = OpConstant %float 0.5
+%three_quarters = OpConstant %float 0.75
+%one = OpConstant %float 1
+%sixteen = OpConstant %float 16
+%initial_color = OpConstantComposite %vec4 %quarter %half %three_quarters %one
+%coord = OpVariable %input Input
+%color = OpVariable %output Output %initial_color
+%depth = OpVariable %depth_output Output %quarter
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%position = OpLoad %vec4 %coord
+%x = OpCompositeExtract %float %position 0
+%kill = OpFOrdLessThan %bool %x %sixteen
+OpSelectionMerge %merge None
+OpBranchConditional %kill %discard %merge
+%discard = OpLabel
+OpKill
+%merge = OpLabel
+OpReturn
+OpFunctionEnd

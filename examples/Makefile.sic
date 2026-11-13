@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Rigby Foundation
+# Run on sic: make -f Makefile.sic SDK=/usr
+# Existing clang defaults to static linking. Compile with clang and explicitly
+# select shared/PIE ELF linking with the native ld.lld.
+SDK ?= /usr
+ARCH ?= aarch64
+CC = clang
+LD = ld.lld
+CFLAGS = -O2 -fPIE -I$(SDK)/include -I.
+CRT = /usr/lib
+LDLIBS = -L$(SDK)/lib -L$(CRT) -lc $(CRT)/libcompiler_rt.a
+START = $(CRT)/Scrt1.o $(CRT)/crti.o
+END = $(CRT)/crtn.o
+LINK = -pie --dynamic-linker=/lib/ld-musl-$(ARCH).so.1 -z max-page-size=4096
+all: sdlwindow loadertriangle loaderprobe dynamic-smoke libplugin.so compute
+sdlwindow.o: window.c window_sdl.h shaders.h
+	$(CC) $(CFLAGS) -DZVK_SDL -c window.c -o $@
+stamp-elf: stamp-elf.c
+	$(CC) -O2 $< -o $@
+sdlwindow: sdlwindow.o stamp-elf
+	$(LD) $(LINK) -o $@ $(START) $< -L$(SDK)/lib -lSDL2 $(LDLIBS) $(END)
+	./stamp-elf $@
+loadertriangle.o: triangle.c shaders.h
+	$(CC) $(CFLAGS) -DZVK_LOADER -c triangle.c -o $@
+loadertriangle: loadertriangle.o stamp-elf
+	$(LD) $(LINK) -o $@ $(START) $< -L$(SDK)/lib -l:libvulkan.so.1 $(LDLIBS) $(END)
+	./stamp-elf $@
+
+loaderprobe.o: loaderprobe.c
+	$(CC) $(CFLAGS) -c $< -o $@
+loaderprobe: loaderprobe.o stamp-elf
+	$(LD) $(LINK) -o $@ $(START) $< -L$(SDK)/lib -l:libvulkan.so.1 $(LDLIBS) $(END)
+	./stamp-elf $@
+compute.o: compute.c shaders.h
+	$(CC) $(CFLAGS) -c $< -o $@
+compute: compute.o stamp-elf
+	$(LD) $(LINK) -o $@ $(START) $< -L$(SDK)/lib -l:libvulkan.so.1 $(LDLIBS) $(END)
+	./stamp-elf $@
+plugin.o: plugin.c
+	$(CC) $(CFLAGS) -fPIC -c $< -o $@
+libplugin.so: plugin.o
+	$(LD) -shared -z defs -soname libplugin.so -o $@ $< $(LDLIBS)
+dynamic-smoke.o: dynamic-smoke.c
+	$(CC) $(CFLAGS) -c $< -o $@
+dynamic-smoke: dynamic-smoke.o stamp-elf
+	$(LD) $(LINK) -o $@ $(START) $< $(LDLIBS) $(END)
+	./stamp-elf $@

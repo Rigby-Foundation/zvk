@@ -1,0 +1,10 @@
+#version 450
+layout(local_size_x=1) in;
+layout(set=0,binding=0,std140,row_major) uniform Input { mat2x3 m[2]; } input_data;
+layout(set=0,binding=1,std430) buffer Results { float v[6]; } result;
+layout(set=0,binding=2,std140,row_major) buffer Output { mat2x3 m[2]; } output_data;
+void main() {
+    mat2x3 a=input_data.m[1];
+    output_data.m[1]=a;
+    for(int c=0;c<2;c++)for(int r=0;r<3;r++)result.v[c*3+r]=a[c][r];
+}

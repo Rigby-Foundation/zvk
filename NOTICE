@@ -1,0 +1,52 @@
+zvk is Copyright (C) 2026 Rigby Foundation.
+The library, public diagnostic header, examples and tests are LGPL-2.1-or-later.
+Build scripts are GPL-2.0-only. See their SPDX identifiers and ../LICENSE.
+
+Vulkan and SPIR-V interface headers and grammar are fetched under build/deps,
+with pinned revisions and SHA-256 checksums. Their upstream copyright and
+license notices remain in those archives and installed headers. They are
+KhronosGroup/Vulkan-Headers v1.3.296 and KhronosGroup/SPIRV-Headers
+vulkan-sdk-1.3.296.0, licensed Apache-2.0 or MIT as specified by upstream.
+
+The optional GLSL fixture compiler is KhronosGroup/glslang 15.1.0. It is
+built only as a test tool under build/tools; no glslang code is linked into
+libzvk. See that source tree's LICENSE.txt for its notices.
+
+The GPU command encoder is ../zgl/lib/virgl.c and its backend dependencies,
+under their own licenses. The Mac test transport uses virglrenderer through
+../zgl/tests/vhost. A QEMU virgl host also uses virglrenderer. These host-side
+dependencies are separate from zvk's Vulkan objects and SPIR-V compiler.
+No Mesa Vulkan driver, NIR, or Mesa SPIR-V compiler is used by libzvk.
+
+Optional loader/validation tooling uses KhronosGroup/Vulkan-Loader and
+KhronosGroup/Vulkan-ValidationLayers v1.3.296, plus the validation release's
+known-good Vulkan-Utility-Libraries, SPIRV-Tools, SPIRV-Headers and robin-hood
+hashing dependencies. They remain in build/tools under their upstream
+licenses (including Apache-2.0 and MIT notices). No loader, validation layer
+or SPIRV-Tools implementation is linked into libzvk. See validation-tools.py
+for archive checksums and immutable dependency commits.
+
+The optional native shared SDK distributes the pinned Apache-2.0 Khronos
+loader with sic's private zwm surface port (scripts/native-loader.py),
+regenerating dispatch tables from its augmented registry. The loader remains
+a separate library and is not linked into libzvk. SDL2 2.30.11 is under its
+Zlib license; sic's zwm Vulkan port lives in ../zde/ports/sdl2/port.
+The isolated host virglrenderer multisample fix is in
+../zgl/tests/patches/virglrenderer-multisample.patch; it is test-host tooling,
+not an alternate Vulkan implementation.
+
+The SDK includes shared sic musl (upstream COPYRIGHT and sic NOTICE are
+packaged), and Zig's compiler runtime archive (Zig's license is packaged
+when supplied by the build toolchain). These are runtime dependencies, not
+parts of zvk's shader compiler.
+
+The optional official Vulkan CTS and its dependencies are downloaded into
+build/cts for host testing, retain their upstream licenses/notices, and are
+not linked into the driver or included in the native SDK.
+
+BC1–BC7 texture preparation uses the vendored bcdec block decoder, by Sergii
+Kudlai, at commit 80859ed3b7afb1c527a2a99d70c61457bea72d0c. zVk selects
+its MIT license; see vendor/bcdec/LICENSE and the retained header notices.
+vendor/bcdec/portability.patch fixes char signedness and undefined signed shifts;
+source checksums and provenance are in vendor/bcdec/README.md. The SDK includes
+bcdec-LICENSE. This decoder does not execute shaders or render frames.

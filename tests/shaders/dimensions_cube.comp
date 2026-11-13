@@ -1,0 +1,8 @@
+#version 450
+layout(local_size_x=8,local_size_y=4) in;
+layout(set=0,binding=0,r32ui) uniform writeonly uimageCube outputImage;
+void main() {
+    ivec3 p=ivec3(gl_GlobalInvocationID);
+    if(all(lessThan(p.xy,imageSize(outputImage))) && p.z<6)
+        imageStore(outputImage,p,uvec4(p.x+11*p.y+101*p.z+17));
+}
